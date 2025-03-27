@@ -34,7 +34,7 @@ def get_drive_id(headers):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         drive_id = response.json().get("id")
-        print("✅ Drive ID:", drive_id)
+        print("Drive ID:", drive_id)
         return drive_id
     else:
         print("Drive ID alınamadı:", response.text)
@@ -45,9 +45,9 @@ def list_files(headers):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         files = response.json().get("value", [])
-        print("📂 SharePoint klasöründeki dosyalar:")
+        print("SharePoint klasöründeki dosyalar:")
         for file in files:
-            print("📄", file["name"])
+            print(file["name"])
     else:
         print("Dosyalar listelenemedi:", response.text)
 
@@ -57,7 +57,7 @@ def download_file(headers, file_name):
     if response.status_code == 200:
         with open(file_name, "wb") as f:
             f.write(response.content)
-        print(f"✅ '{file_name}' dosyası başarıyla indirildi.")
+        print(f" '{file_name}' dosyası başarıyla indirildi.")
     else:
         print("Dosya indirilemedi:", response.text)
 
