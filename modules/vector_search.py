@@ -1,5 +1,7 @@
 """
-Azure AI Search üzerinde semantik vektör araması yapan modül
+Vector Search Module
+
+Bu modül, Azure AI Search kullanarak hibrit arama işlemlerini gerçekleştirir.
 """
 import os
 import sys
@@ -8,6 +10,7 @@ import requests
 import argparse
 import asyncio
 from typing import List, Dict, Any, Optional, Union
+import aiohttp
 
 # Projenin kök dizinine erişebilmek için path ayarlaması
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,6 +33,12 @@ from modules.create_search_index_sdk import (
     delete_search_index,
     get_index_statistics as get_index_status
 )
+
+# Azure Search yapılandırması
+SEARCH_ENDPOINT = os.getenv("AZURE_SEARCH_ENDPOINT").strip('"')  # Remove quotes
+SEARCH_KEY = os.getenv("AZURE_SEARCH_KEY").strip('"')  # Remove quotes
+SEARCH_INDEX = os.getenv("AZURE_SEARCH_INDEX_NAME").strip('"')  # Remove quotes
+API_VERSION = os.getenv("AZURE_SEARCH_API_VERSION", "2024-07-01").strip('"')  # Remove quotes
 
 async def vector_search(query: str, top_k: int = 5, filter_condition: str = None, 
                  use_exhaustive: bool = False) -> List[Dict[str, Any]]:
@@ -136,9 +145,6 @@ async def hybrid_search(query: str, top_k: int = 5, filter_condition: str = None
     print(f"🔍 '{query}' için hibrit arama yapılıyor...")
     
     try:
-        # Sorguyu embed et - asenkron fonksiyon çağrısı
-        query_vector = await async_embed_query(query)
-        
         # AI Search URL
         url = f"{AZURE_SEARCH_ENDPOINT}/indexes/{AZURE_SEARCH_INDEX_NAME}/docs/search?api-version={AZURE_SEARCH_API_VERSION}"
         
@@ -148,30 +154,18 @@ async def hybrid_search(query: str, top_k: int = 5, filter_condition: str = None
             "api-key": AZURE_SEARCH_KEY
         }
         
-        # Arama sorgusu (hem metin hem vektör)
+        # Arama sorgusu (metin araması)
         search_query = {
-            "search": query,  # Metin araması için
+            "search": query,
+            "queryType": "full",
+            "searchMode": "all",
             "select": "id,file_name,chunk_id,content,file_type,last_updated",
-            "top": top_k,
-            "vectorQueries": [
-                {
-                    "vector": query_vector,
-                    "fields": "content_vector",
-                    "k": top_k,
-                    "kind": "vector",
-                    "exhaustive": use_exhaustive
-                }
-            ]
+            "top": top_k
         }
         
         # Eğer filtre belirtilmişse ekle
         if filter_condition:
             search_query["filter"] = filter_condition
-        
-        # Semantik arama konfigürasyonu belirtilmişse ekle
-        if semantic_config:
-            search_query["queryType"] = "semantic"
-            search_query["semanticConfiguration"] = semantic_config
         
         # İstek ve cevabı debug için logla
         print(f"📋 API request: {json.dumps(search_query)[:500]}...")
